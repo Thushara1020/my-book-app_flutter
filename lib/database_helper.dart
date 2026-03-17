@@ -22,13 +22,24 @@ class DatabaseHelper {
   }
 
   Future _createDB(Database db, int version) async {
-    await db.execute('''
-      CREATE TABLE posts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        userName TEXT,
-        postContent TEXT,
-        likes INTEGER
-      )
-    ''');
+  await db.execute('''
+    CREATE TABLE posts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userName TEXT,
+      postContent TEXT,
+      imagePath TEXT, 
+      likes INTEGER
+    )
+  ''');
+}
+  Future<int> createPost(Map<String, dynamic> row) async {
+    Database db = await instance.database;
+    return await db.insert('posts', row);
+  }
+
+  Future<List<Map<String, dynamic>>> queryAllPosts() async {
+    Database db = await instance.database;
+
+    return await db.query('posts', orderBy: 'id DESC');
   }
 }
