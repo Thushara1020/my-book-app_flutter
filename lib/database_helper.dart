@@ -27,7 +27,8 @@ class DatabaseHelper {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       userName TEXT,
       postContent TEXT,
-      imagePath TEXT, 
+      imagePath TEXT,
+      createdAt TEXT, 
       likes INTEGER
     )
   ''');
