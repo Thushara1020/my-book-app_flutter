@@ -58,14 +58,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _addPost() async {
-    // නම සහ පෝස්ට් එක හෝ පින්තූරය තියෙන්න ඕනේ
+
     if (_nameController.text.isNotEmpty && (_postController.text.isNotEmpty || _selectedImage != null)) {
-      
-      // දැනට පවතින වෙලාව සහ දිනය ලබා ගැනීම
+
       String formattedTime = DateTime.now().toString().substring(0, 16); 
 
       await DatabaseHelper.instance.createPost({
-        'userName': _nameController.text, // TextField එකේ නම මෙතනට යනවා
+        'userName': _nameController.text, 
         'postContent': _postController.text,
         'imagePath': _selectedImage?.path,
         'createdAt': formattedTime, 
@@ -140,7 +139,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // --- Feed Section (ඔබ ඉල්ලූ Card එක සහිතව) ---
           Expanded(
             child: ListView.builder(
               itemCount: _allPosts.length,
@@ -159,7 +157,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Text(post['userName']?[0].toUpperCase() ?? 'U'),
                         ),
                         title: Text(post['userName'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        // මෙන්න මෙතන වෙලාව පෙන්වනවා
                         subtitle: Text(post['createdAt'] ?? ""), 
                       ),
                       
