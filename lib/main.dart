@@ -58,9 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _addPost() async {
-
     if (_nameController.text.isNotEmpty && (_postController.text.isNotEmpty || _selectedImage != null)) {
-
       String formattedTime = DateTime.now().toString().substring(0, 16); 
 
       await DatabaseHelper.instance.createPost({
@@ -139,6 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+
           Expanded(
             child: ListView.builder(
               itemCount: _allPosts.length,
@@ -175,17 +174,29 @@ class _HomeScreenState extends State<HomeScreen> {
                           errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
                         ),
                       
+                      const Divider(height: 1),
                       Padding(
-                        padding: const EdgeInsets.all(12.0),
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                         child: Row(
                           children: [
-                            const Icon(Icons.favorite_border, color: Colors.redAccent, size: 20),
+                            IconButton(
+                              icon: const Icon(Icons.favorite_border, color: Colors.red),
+                              onPressed: () async {
+                                await DatabaseHelper.instance.updateLikes(
+                                  post['id'], 
+                                  post['likes']
+                                );
+                                _refreshPosts();
+                              },
+                            ),
+                            Text(
+                              '${post['likes'] ?? 0} Likes',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(width: 15),
+                            const Icon(Icons.chat_bubble_outline, size: 20, color: Colors.grey),
                             const SizedBox(width: 5),
-                            Text("${post['likes'] ?? 0} Likes"),
-                            const SizedBox(width: 20),
-                            const Icon(Icons.chat_bubble_outline, size: 20),
-                            const SizedBox(width: 5),
-                            const Text("Comment"),
+                            const Text("Comment", style: TextStyle(color: Colors.grey)),
                           ],
                         ),
                       ),
