@@ -1,121 +1,212 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'database_helper.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+void main() => runApp(const MySocialApp());
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MySocialApp extends StatelessWidget {
+  const MySocialApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+        colorSchemeSeed: Colors.blueAccent,
+        scaffoldBackgroundColor: const Color(0xFFF8F9FA),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const HomeScreen(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _HomeScreenState extends State<HomeScreen> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _postController = TextEditingController();
+  List<Map<String, dynamic>> _allPosts = [];
+  File? _selectedImage;
 
-  void _incrementCounter() {
+  @override
+  void initState() {
+    super.initState();
+    _refreshPosts();
+  }
+
+  void _refreshPosts() async {
+    final data = await DatabaseHelper.instance.queryAllPosts();
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _allPosts = data.reversed.toList();
     });
+  }
+
+  Future<void> _pickImage() async {
+    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImage = File(pickedFile.path);
+      });
+    }
+  }
+
+  void _addPost() async {
+    if (_nameController.text.isNotEmpty && (_postController.text.isNotEmpty || _selectedImage != null)) {
+      String formattedTime = DateTime.now().toString().substring(0, 16); 
+
+      await DatabaseHelper.instance.createPost({
+        'userName': _nameController.text, 
+        'postContent': _postController.text,
+        'imagePath': _selectedImage?.path,
+        'createdAt': formattedTime, 
+        'likes': 0
+      });
+
+      _postController.clear();
+      setState(() {
+        _selectedImage = null;
+      });
+      _refreshPosts();
+      FocusScope.of(context).unfocus(); 
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your name and some content!')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: const Text('Connect', style: TextStyle(fontWeight: FontWeight.bold)),
+        centerTitle: true,
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+      body: Column(
+        children: [
+          // --- Post Entry Section ---
+          Container(
+            margin: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
             ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                    hintText: "Your Name",
+                    prefixIcon: const Icon(Icons.person_outline),
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _postController,
+                        decoration: const InputDecoration(hintText: "What's on your mind?", border: InputBorder.none),
+                      ),
+                    ),
+                    IconButton(onPressed: _pickImage, icon: const Icon(Icons.image, color: Colors.green)),
+                    IconButton(
+                      onPressed: _addPost,
+                      icon: const Icon(Icons.send_rounded, color: Colors.blueAccent),
+                    ),
+                  ],
+                ),
+                if (_selectedImage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Image.file(_selectedImage!, height: 100, width: 100, fit: BoxFit.cover),
+                  ),
+              ],
+            ),
+          ),
+
+
+          Expanded(
+            child: ListView.builder(
+              itemCount: _allPosts.length,
+              itemBuilder: (context, index) {
+                final post = _allPosts[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ListTile(
+                        leading: CircleAvatar(
+                          child: Text(post['userName']?[0].toUpperCase() ?? 'U'),
+                        ),
+                        title: Text(post['userName'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(post['createdAt'] ?? ""), 
+                      ),
+                      
+                      if (post['postContent'] != null && post['postContent'].isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Text(post['postContent'], style: const TextStyle(fontSize: 15)),
+                        ),
+
+                      if (post['imagePath'] != null)
+                        Image.file(
+                          File(post['imagePath']),
+                          height: 250,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                        ),
+                      
+                      const Divider(height: 1),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.favorite_border, color: Colors.red),
+                              onPressed: () async {
+                                await DatabaseHelper.instance.updateLikes(
+                                  post['id'], 
+                                  post['likes']
+                                );
+                                _refreshPosts();
+                              },
+                            ),
+                            Text(
+                              '${post['likes'] ?? 0} Likes',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(width: 15),
+                            const Icon(Icons.chat_bubble_outline, size: 20, color: Colors.grey),
+                            const SizedBox(width: 5),
+                            const Text("Comment", style: TextStyle(color: Colors.grey)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
