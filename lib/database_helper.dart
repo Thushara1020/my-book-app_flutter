@@ -7,7 +7,6 @@ class DatabaseHelper {
 
   DatabaseHelper._init();
 
-
   Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDB('social_app.db');
@@ -22,25 +21,38 @@ class DatabaseHelper {
   }
 
   Future _createDB(Database db, int version) async {
-  await db.execute('''
-    CREATE TABLE posts (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      userName TEXT,
-      postContent TEXT,
-      imagePath TEXT,
-      createdAt TEXT, 
-      likes INTEGER
-    )
-  ''');
-}
+    await db.execute('''
+      CREATE TABLE posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userName TEXT,
+        postContent TEXT,
+        imagePath TEXT,
+        createdAt TEXT, 
+        likes INTEGER
+      )
+    ''');
+  }
+
+
   Future<int> createPost(Map<String, dynamic> row) async {
     Database db = await instance.database;
     return await db.insert('posts', row);
   }
 
+
   Future<List<Map<String, dynamic>>> queryAllPosts() async {
     Database db = await instance.database;
-
     return await db.query('posts', orderBy: 'id DESC');
+  }
+
+
+  Future<int> updateLikes(int id, int currentLikes) async {
+    Database db = await instance.database;
+    return await db.update(
+      'posts',
+      {'likes': currentLikes + 1},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 }
