@@ -2,11 +2,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'database_helper.dart';
+import 'profile_page.dart';
 
-void main() => runApp(const MySocialApp());
+void main() => runApp(const ConnectApp());
 
-class MySocialApp extends StatelessWidget {
-  const MySocialApp({super.key});
+class ConnectApp extends StatelessWidget {
+  const ConnectApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +16,7 @@ class MySocialApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: Colors.blueAccent,
-        scaffoldBackgroundColor: const Color(0xFFF8F9FA),
+        fontFamily: 'sans-serif',
       ),
       home: const HomeScreen(),
     );
@@ -30,182 +31,154 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _postController = TextEditingController();
-  List<Map<String, dynamic>> _allPosts = [];
+  List<Map<String, dynamic>> _posts = [];
+  String _userName = "User";
   File? _selectedImage;
 
   @override
   void initState() {
     super.initState();
-    _refreshPosts();
+    _refreshData();
   }
 
-  void _refreshPosts() async {
-    final data = await DatabaseHelper.instance.queryAllPosts();
+  void _refreshData() async {
+    final p = await DatabaseHelper.instance.queryAllPosts();
+    final user = await DatabaseHelper.instance.getProfile();
     setState(() {
-      _allPosts = data.reversed.toList();
+      _posts = p;
+      _userName = user['name'] ?? "User";
     });
   }
 
   Future<void> _pickImage() async {
-    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _selectedImage = File(pickedFile.path);
-      });
-    }
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (picked != null) setState(() => _selectedImage = File(picked.path));
   }
 
-  void _addPost() async {
-    if (_nameController.text.isNotEmpty && (_postController.text.isNotEmpty || _selectedImage != null)) {
-      String formattedTime = DateTime.now().toString().substring(0, 16); 
-
+  void _submitPost() async {
+    if (_postController.text.isNotEmpty || _selectedImage != null) {
       await DatabaseHelper.instance.createPost({
-        'userName': _nameController.text, 
+        'userName': _userName,
         'postContent': _postController.text,
         'imagePath': _selectedImage?.path,
-        'createdAt': formattedTime, 
+        'createdAt': "Just now",
         'likes': 0
       });
-
       _postController.clear();
-      setState(() {
-        _selectedImage = null;
-      });
-      _refreshPosts();
-      FocusScope.of(context).unfocus(); 
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your name and some content!')),
-      );
+      setState(() => _selectedImage = null);
+      _refreshData();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF2F4F7),
       appBar: AppBar(
-        title: const Text('Connect', style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
+        title: const Text("Connect", style: TextStyle(fontWeight: FontWeight.w900, color: Colors.blueAccent)),
+        centerTitle: false,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.account_circle, size: 30, color: Colors.blueAccent),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const ProfilePage())).then((_) => _refreshData()),
+          ),
+          const SizedBox(width: 10),
+        ],
       ),
       body: Column(
         children: [
-          // --- Post Entry Section ---
+
           Container(
-            margin: const EdgeInsets.all(12),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
-            ),
-            child: Column(
+            color: Colors.white,
+            padding: const EdgeInsets.all(15),
+            child: Row(
               children: [
-                TextField(
-                  controller: _nameController,
-                  decoration: InputDecoration(
-                    hintText: "Your Name",
-                    prefixIcon: const Icon(Icons.person_outline),
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                CircleAvatar(backgroundColor: Colors.blue.shade100, child: Text(_userName[0])),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _postController,
+                    decoration: InputDecoration(
+                      hintText: "What's on your mind?",
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _postController,
-                        decoration: const InputDecoration(hintText: "What's on your mind?", border: InputBorder.none),
-                      ),
-                    ),
-                    IconButton(onPressed: _pickImage, icon: const Icon(Icons.image, color: Colors.green)),
-                    IconButton(
-                      onPressed: _addPost,
-                      icon: const Icon(Icons.send_rounded, color: Colors.blueAccent),
-                    ),
-                  ],
-                ),
-                if (_selectedImage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: Image.file(_selectedImage!, height: 100, width: 100, fit: BoxFit.cover),
-                  ),
+                IconButton(onPressed: _pickImage, icon: const Icon(Icons.photo_library, color: Colors.green)),
+                IconButton(onPressed: _submitPost, icon: const Icon(Icons.send, color: Colors.blueAccent)),
               ],
             ),
           ),
-
+          if (_selectedImage != null) Image.file(_selectedImage!, height: 100),
+          
 
           Expanded(
             child: ListView.builder(
-              itemCount: _allPosts.length,
-              itemBuilder: (context, index) {
-                final post = _allPosts[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ListTile(
-                        leading: CircleAvatar(
-                          child: Text(post['userName']?[0].toUpperCase() ?? 'U'),
-                        ),
-                        title: Text(post['userName'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(post['createdAt'] ?? ""), 
-                      ),
-                      
-                      if (post['postContent'] != null && post['postContent'].isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          child: Text(post['postContent'], style: const TextStyle(fontSize: 15)),
-                        ),
-
-                      if (post['imagePath'] != null)
-                        Image.file(
-                          File(post['imagePath']),
-                          height: 250,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-                        ),
-                      
-                      const Divider(height: 1),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                        child: Row(
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.favorite_border, color: Colors.red),
-                              onPressed: () async {
-                                await DatabaseHelper.instance.updateLikes(
-                                  post['id'], 
-                                  post['likes']
-                                );
-                                _refreshPosts();
-                              },
-                            ),
-                            Text(
-                              '${post['likes'] ?? 0} Likes',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(width: 15),
-                            const Icon(Icons.chat_bubble_outline, size: 20, color: Colors.grey),
-                            const SizedBox(width: 5),
-                            const Text("Comment", style: TextStyle(color: Colors.grey)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+              itemCount: _posts.length,
+              itemBuilder: (context, index) => _buildPostCard(_posts[index]),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPostCard(Map<String, dynamic> post) {
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      color: Colors.white,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ListTile(
+            leading: CircleAvatar(child: Text(post['userName'][0])),
+            title: Text(post['userName'], style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(post['createdAt']),
+            trailing: const Icon(Icons.more_horiz),
+          ),
+          if (post['postContent'].isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+              child: Text(post['postContent'], style: const TextStyle(fontSize: 16)),
+            ),
+          if (post['imagePath'] != null)
+            Image.file(File(post['imagePath']), width: double.infinity, fit: BoxFit.fitWidth),
+          
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () async {
+                    await DatabaseHelper.instance.updateLikes(post['id'], post['likes']);
+                    _refreshData();
+                  },
+                  child: Row(children: [
+                    const Icon(Icons.favorite, color: Colors.red, size: 22),
+                    const SizedBox(width: 5),
+                    Text("${post['likes']} Likes"),
+                  ]),
+                ),
+                const Spacer(),
+                const Text("1 comment", style: TextStyle(color: Colors.grey)),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              TextButton.icon(onPressed: () {}, icon: const Icon(Icons.favorite_border), label: const Text("Like")),
+              TextButton.icon(onPressed: () {}, icon: const Icon(Icons.chat_bubble_outline), label: const Text("Comment")),
+              TextButton.icon(onPressed: () {}, icon: const Icon(Icons.share_outlined), label: const Text("Share")),
+            ],
+          )
         ],
       ),
     );
